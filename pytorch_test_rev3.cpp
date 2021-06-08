@@ -3,10 +3,11 @@
 #include <math.h>
 #include <cmath>
 #include <assert.h>
+#include <iostream>
 
 using namespace std;
 
-torch::Tensor dct(const torch::Tensor x, string norm="None") { 
+torch::Tensor dct(const torch::Tensor x, torch::Device device, string norm="None") { 
 	/*
 	Type II DCT
 	Returns a 2D Tensor. If x is a N-sequence, the resulting tensor is of the shape (1,N)
@@ -18,6 +19,7 @@ torch::Tensor dct(const torch::Tensor x, string norm="None") {
 	int N = int(shape.back());
 	int nrow;
 	torch::Tensor x_;
+
 	if (shape.size() == 1) {
 		x_ = x.unsqueeze(0);
 		nrow = 1;
@@ -35,6 +37,11 @@ torch::Tensor dct(const torch::Tensor x, string norm="None") {
 
 	// construct y
 	torch::Tensor y = torch::zeros_like(x_);
+
+	// Move the tensors to the device
+	k = k.to(device);
+	y = y.to(device);
+
 	for (int i = 0; i < nrow; i++) {
 		for (int n = 0; n < N; n += 2) {
 			y[i][n / 2] = x_[i][n].item();
@@ -69,16 +76,22 @@ torch::Tensor dct(const torch::Tensor x, string norm="None") {
 	return X;
 }
 
-torch::Tensor dct2(torch::Tensor x, string norm = "None") {
-	torch::Tensor X1 = dct(x, norm);
-	torch::Tensor X2 = dct(X1.transpose(1, 0), norm).transpose(1, 0);
+torch::Tensor dct2(torch::Tensor x, torch::Device device, string norm = "None") {
+	torch::Tensor X1 = dct(x, device, norm);
+	torch::Tensor X2 = dct(X1.transpose(1, 0), device, norm).transpose(1, 0);
 	return X2;
 }
 
 
 auto main() -> int {
 	const int N = 9;
-	
+
+	// define the device
+	torch::DeviceType device_type;
+	device_type = torch::kCUDA;
+	torch::Device device0(device_type, 0);
+
+
 	torch::Tensor x = torch::arange(N);
 	torch::Tensor x2 = torch::cat({ x.reshape({ 1, N }),
 		x.reshape({ 1, N }),
@@ -89,31 +102,39 @@ auto main() -> int {
 		x.reshape({ 1, N }),
 		x.reshape({ 1, N }),
 		x.reshape({ 1, N }) }, 0);
+	
+	// move x, x2 to GPU
+	x = x.to(device0);
+	x2 = x2.to(device0);
+
 	torch::Tensor X;
 	torch::Tensor X2;
 
+
 	// 1D sequence, no normalization
-	X = dct(x);
+	X = dct(x, device0);
+	X = X.cpu();
 	cout << X.squeeze() << endl;
 
 	// 1D sequence, with normalization
-	X = dct(x, "ortho");
+	X = dct(x, device0, "ortho");
+	X = X.cpu();
 	cout << X.squeeze() << endl;
 
 	// 2D matrix, no normalization
-	X2 = dct2(x2).squeeze();
+	X2 = dct2(x2, device0).squeeze().cpu();
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			cout << X2[i][j].item() << "\t";
+			cout << X2[i][j] << "\t";
 		}
 		cout << endl;
 	}
 
 	// 2D matrix, with normalization
-	X2 = dct2(x2, "ortho").squeeze();
+	X2 = dct2(x2, device0, "ortho").squeeze().cpu();
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			cout << X2[i][j].item() << "\t";
+			cout << X2[i][j] << "\t";
 		}
 		cout << endl;
 	}
