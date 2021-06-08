@@ -33,14 +33,11 @@ torch::Tensor dct(const torch::Tensor x, torch::Device device, string norm="None
 	}
 
 	// Declare k = 0, 1, 2, ... ,N-1
-	torch::Tensor k = torch::arange(N);
+	torch::Tensor k = torch::arange(N,device);
 
 	// construct y
-	torch::Tensor y = torch::zeros_like(x_);
+	torch::Tensor y = torch::zeros_like(x_,device);
 
-	// Move the tensors to the device
-	k = k.to(device);
-	y = y.to(device);
 
 	for (int i = 0; i < nrow; i++) {
 		for (int n = 0; n < N; n += 2) {
@@ -92,7 +89,7 @@ auto main() -> int {
 	torch::Device device0(device_type, 0);
 
 
-	torch::Tensor x = torch::arange(N);
+	torch::Tensor x = torch::arange(N,device0);
 	torch::Tensor x2 = torch::cat({ x.reshape({ 1, N }),
 		x.reshape({ 1, N }),
 		x.reshape({ 1, N }), 
@@ -103,9 +100,6 @@ auto main() -> int {
 		x.reshape({ 1, N }),
 		x.reshape({ 1, N }) }, 0);
 	
-	// move x, x2 to GPU
-	x = x.to(device0);
-	x2 = x2.to(device0);
 
 	torch::Tensor X;
 	torch::Tensor X2;
